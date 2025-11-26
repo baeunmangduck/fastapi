@@ -26,3 +26,13 @@ async def read_item_optional(skip: int, limit: Optional[int] = None):
         return items_db[skip: skip + limit]
     else:
         return {"limit not provided"}
+    
+
+@app.get("/items/{item_id}")
+# Optional을 다르게 표현하는 법 | None = None
+async def read_item_optional(item_id: str, q: str | None = None):
+    # return items_db[skip: skip + limit]
+    if q:
+        return {"item_id": item_id, "q": q}
+    else:
+        return {"item_id": item_id}
