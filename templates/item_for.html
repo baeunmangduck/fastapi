@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>item for</title>
+  </head>
+  <body>
+    {% for item in all_items %}
+    <p>item_name: {{item.name}}, item_price: {{ item.price }}</p>
+    {% endfor %}
+  </body>
+</html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>isAdmin</title>
+  </head>
+  <body>
+    {% if is_admin == "admin" %}
+    <p>admin용 Item입니다.</p>
+    {% else %}
+    <p>user용 item입니다.</p>
+    {% endif %}
+    {{ item }}
+  </body>
+</html>
