@@ -63,7 +63,7 @@ allow_inf_nan : inf, -inf, nan 허용 여부
 """
 
 
-class Foo(BaseModel):
+class Num(BaseModel):
     positive: int = Field(gt=0)  # 0보다 큰 값
     non_negative: int = Field(ge=0)  # 0 이상
     negative: int = Field(lt=0)  # 0 미만
@@ -72,7 +72,7 @@ class Foo(BaseModel):
     special: float = Field(allow_inf_nan=True)  # inf, -inf, nan 허용
 
 
-foo = Foo(
+num = Num(
     positive=1,
     non_negative=0,
     negative=-1,
@@ -80,7 +80,7 @@ foo = Foo(
     even=4,
     special=float("inf"),
 )
-print(foo)
+print(num)
 
 
 # ============================================================
