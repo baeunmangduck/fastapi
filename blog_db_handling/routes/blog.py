@@ -15,7 +15,7 @@ router = APIRouter(prefix="/blogs", tags=["blogs"])
 templates = Jinja2Templates(directory="templates")
 
 
-@router.get("/all")
+@router.get("/")
 async def get_all_blogs(request: Request):
     conn = None
     try:
@@ -110,3 +110,67 @@ def create_blog(
     except SQLAlchemyError as e:
         print(e)
         conn.rollback()
+
+
+@router.get("/modify/{id}")
+def update_blog_ui(
+    request: Request, id: int, conn: Connection = Depends(context_get_conn)
+):
+    try:
+        q = """
+            SELECT id, title, author, content FROM blog WHERE id = :id
+            """
+        statement = text(q)
+        result = conn.execute(statement, {"id": id})
+        if result.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"해당 id {id}가 존재하지 않음",
+            )
+        row = result.fetchone()
+        return templates.TemplateResponse(
+            request=request,
+            name="modify_blog.html",
+            context={
+                "id": row.id,
+                "title": row.title,
+                "author": row.author,
+                "content": row.content,
+            },
+        )
+    except SQLAlchemyError as e:
+        print(e)
+        raise e
+
+
+@router.post("/modify/{id}")
+def update_blog(
+    request: Request,
+    id: int,
+    title=Form(min_length=2, max_length=100),
+    author=Form(max_length=100),
+    content=Form(min_length=2, max_length=4000),
+    conn: Connection = Depends(context_get_conn),
+):
+
+    try:
+        q = f"""
+            UPDATE blog
+            SET title = :title, author = :author, content = :content
+            WHERE id = :id
+            """
+        statement = text(q)
+        result = conn.execute(
+            statement, {"id": id, "title": title, "author": author, "content": content}
+        )
+        if result.rowcount == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"해당 id {id}가 존재하지 않음",
+            )
+        conn.commit()
+        return RedirectResponse(f"/blogs/show/{id}", status_code=status.HTTP_302_FOUND)
+    except SQLAlchemyError as e:
+        print(e)
+        conn.rollback()
+        raise e
