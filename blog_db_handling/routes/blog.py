@@ -40,9 +40,17 @@ async def get_all_blogs(request: Request):
             request=request, name="index.html", context={"all_blogs": all_blogs}
         )
     except SQLAlchemyError as e:
+        print("SQL Alchemy Error: ", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
+        )
+    except Exception as e:
         print(e)
-        raise e
-
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="알 수 없는 이유로 서비스 오류가 발생했습니다.",
+        )
     finally:
         if conn:
             conn.close()
@@ -81,8 +89,11 @@ def get_blog_by_id(
             request=request, name="show_blog.html", context={"blog": blog}
         )
     except SQLAlchemyError as e:
-        print(e)
-        raise e
+        print("SQL Alchemy Error: ", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
+        )
 
 
 @router.get("/new")
@@ -108,8 +119,12 @@ def create_blog(
 
         return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
     except SQLAlchemyError as e:
-        print(e)
+        print("SQL Alchemy Error: ", e)
         conn.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="요청 데이터가 제대로 전달되지 않았습니다.",
+        )
 
 
 @router.get("/modify/{id}")
@@ -140,7 +155,10 @@ def update_blog_ui(
         )
     except SQLAlchemyError as e:
         print(e)
-        raise e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="요청 데이터가 제대로 전달되지 않았습니다.",
+        )
 
 
 @router.post("/modify/{id}")
@@ -171,9 +189,12 @@ def update_blog(
         conn.commit()
         return RedirectResponse(f"/blogs/show/{id}", status_code=status.HTTP_302_FOUND)
     except SQLAlchemyError as e:
-        print(e)
+        print("SQL Alchemy Error: ", e)
         conn.rollback()
-        raise e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="요청 데이터가 제대로 전달되지 않았습니다.",
+        )
 
 
 @router.post("/delete/{id}")
@@ -195,6 +216,9 @@ def delete_blog(
         conn.commit()
         return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
     except SQLAlchemyError as e:
-        print(e)
+        print("SQL Alchemy Error: ", e)
         conn.rollback()
-        raise e
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
+        )

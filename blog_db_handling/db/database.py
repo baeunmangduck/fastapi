@@ -4,12 +4,15 @@ from sqlalchemy.pool import QueuePool, NullPool
 from contextlib import contextmanager
 from fastapi import status
 from fastapi.exceptions import HTTPException
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+DATABASE_CONN = os.getenv("DB_CONN")
 
-DB_CONN = "mysql+mysqlconnector://root:root1234@localhost:3306/blog_db"
 
 engine = create_engine(
-    DB_CONN, poolclass=QueuePool, pool_size=10, max_overflow=0, pool_recycle=300
+    DATABASE_CONN, poolclass=QueuePool, pool_size=10, max_overflow=0, pool_recycle=300
 )
 
 
@@ -19,8 +22,11 @@ def direct_get_conn():
         conn = engine.connect()
         return conn
     except SQLAlchemyError as e:
-        print(e)
-        raise e
+        print("SQL Alchemy Error: ", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
+        )
 
 
 def context_get_conn():
@@ -29,8 +35,11 @@ def context_get_conn():
         conn = engine.connect()
         yield conn
     except SQLAlchemyError as e:
-        print(e)
-        raise e
+        print("SQL Alchemy Error: ", e)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
+        )
     finally:
         if conn:
             conn.close()
