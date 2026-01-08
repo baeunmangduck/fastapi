@@ -7,6 +7,7 @@ from db.database import context_get_conn, direct_get_conn
 from schemas.blog_schema import Blog, BlogData
 from sqlalchemy.exc import SQLAlchemyError
 from util.util import truncate_text, newline_to_br
+from services import blog_svc
 
 # router
 router = APIRouter(prefix="/blogs", tags=["blogs"])
@@ -16,84 +17,22 @@ templates = Jinja2Templates(directory="templates")
 
 
 @router.get("/")
-async def get_all_blogs(request: Request):
+async def get_all_blogs(request: Request, conn: Connection = Depends(context_get_conn)):
     conn = None
-    try:
-        conn = direct_get_conn()
-        q = """
-            SELECT id, title, author, content, image_loc, modified_dt FROM blog
-            """
-        result = conn.execute(text(q))
-        all_blogs = [
-            BlogData(
-                id=row.id,
-                title=row.title,
-                author=row.author,
-                content=truncate_text(row.content, 150),
-                image_loc=row.image_loc,
-                modified_dt=row.modified_dt,
-            )
-            for row in result
-        ]
-        result.close()
-        return templates.TemplateResponse(
-            request=request, name="index.html", context={"all_blogs": all_blogs}
-        )
-    except SQLAlchemyError as e:
-        print("SQL Alchemy Error: ", e)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
-        )
-    except Exception as e:
-        print(e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="알 수 없는 이유로 서비스 오류가 발생했습니다.",
-        )
-    finally:
-        if conn:
-            conn.close()
+    all_blogs = blog_svc.get_all_blogs(conn)
+    return templates.TemplateResponse(
+        request=request, name="index.html", context={"all_blogs": all_blogs}
+    )
 
 
 @router.get("/show/{id}")
 def get_blog_by_id(
     request: Request, id: int, conn: Connection = Depends(context_get_conn)
 ):
-    try:
-        q = """
-            SELECT id, title, author, content, image_loc, modified_dt FROM blog 
-            where id = :id
-            """
-
-        statement = text(q)
-
-        result = conn.execute(statement, {"id": id})
-        if result.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"해당 ID {id}는(은) 존재하지 않음",
-            )
-
-        row = result.fetchone()
-        blog = BlogData(
-            id=row.id,
-            title=row.title,
-            author=row.author,
-            content=newline_to_br(row.content),
-            image_loc=row.image_loc,
-            modified_dt=row.modified_dt,
-        )
-        result.close()
-        return templates.TemplateResponse(
-            request=request, name="show_blog.html", context={"blog": blog}
-        )
-    except SQLAlchemyError as e:
-        print("SQL Alchemy Error: ", e)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
-        )
+    blog = blog_svc.get_blog_by_id(conn, id)
+    return templates.TemplateResponse(
+        request=request, name="show_blog.html", context={"blog": blog}
+    )
 
 
 @router.get("/new")
@@ -109,22 +48,8 @@ def create_blog(
     content=Form(min_length=2, max_length=4000),
     conn: Connection = Depends(context_get_conn),
 ):
-    try:
-        q = f"""
-            INSERT INTO blog(title, author, content, modified_dt)
-            VALUES (:title, :author, :content, now())
-            """
-        conn.execute(text(q), {"title": title, "author": author, "content": content})
-        conn.commit()
-
-        return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
-    except SQLAlchemyError as e:
-        print("SQL Alchemy Error: ", e)
-        conn.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="요청 데이터가 제대로 전달되지 않았습니다.",
-        )
+    blog_svc.create_blog(conn, title=title, author=author, content=content)
+    return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/modify/{id}")
