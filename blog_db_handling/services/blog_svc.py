@@ -4,7 +4,7 @@ from fastapi.exceptions import HTTPException
 from sqlalchemy import Connection, text
 from schemas.blog_schema import Blog, BlogData
 from sqlalchemy.exc import SQLAlchemyError
-from util.util import truncate_text, newline_to_br
+from util import util
 
 
 def get_all_blogs(conn: Connection) -> List:
@@ -13,12 +13,13 @@ def get_all_blogs(conn: Connection) -> List:
             SELECT id, title, author, content, image_loc, modified_dt FROM blog
             """
         result = conn.execute(text(q))
+
         all_blogs = [
             BlogData(
                 id=row.id,
                 title=row.title,
                 author=row.author,
-                content=truncate_text(row.content, 150),
+                content=util.truncate_text(row.content, 150),
                 image_loc=row.image_loc,
                 modified_dt=row.modified_dt,
             )
@@ -63,7 +64,7 @@ def get_blog_by_id(conn: Connection, id: int):
             id=row.id,
             title=row.title,
             author=row.author,
-            content=newline_to_br(row.content),
+            content=row.content,
             image_loc=row.image_loc,
             modified_dt=row.modified_dt,
         )
@@ -96,34 +97,12 @@ def create_blog(conn: Connection, title: str, author: str, content: str):
         )
 
 
-def update_blog_ui(conn: Connection, id: int):
-    try:
-        q = """
-            SELECT id, title, author, content FROM blog WHERE id = :id
-            """
-        statement = text(q)
-        result = conn.execute(statement, {"id": id})
-        if result.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"해당 id {id}가 존재하지 않음",
-            )
-        row = result.fetchone()
-
-    except SQLAlchemyError as e:
-        print(e)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="요청 데이터가 제대로 전달되지 않았습니다.",
-        )
-
-
 def update_blog(
+    conn: Connection,
     id: int,
-    title=Form(min_length=2, max_length=100),
-    author=Form(max_length=100),
-    content=Form(min_length=2, max_length=4000),
-    conn: Connection = Depends(context_get_conn),
+    title: str,
+    author: str,
+    content: str,
 ):
 
     try:
@@ -142,7 +121,7 @@ def update_blog(
                 detail=f"해당 id {id}가 존재하지 않음",
             )
         conn.commit()
-        return RedirectResponse(f"/blogs/show/{id}", status_code=status.HTTP_302_FOUND)
+
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
         conn.rollback()
@@ -152,10 +131,7 @@ def update_blog(
         )
 
 
-@router.post("/delete/{id}")
-def delete_blog(
-    request: Request, id: int, conn: Connection = Depends(context_get_conn)
-):
+def delete_blog(conn: Connection, id: int):
     try:
         q = """
             DELETE FROM blog
@@ -169,7 +145,6 @@ def delete_blog(
                 detail=f"해당 id {id}는 존재하지 않음",
             )
         conn.commit()
-        return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
         conn.rollback()
