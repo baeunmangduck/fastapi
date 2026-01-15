@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -46,9 +46,12 @@ def create_blog(
     title=Form(min_length=2, max_length=100),
     author=Form(max_length=100),
     content=Form(min_length=2, max_length=4000),
+    imagefile: UploadFile | None = File(None),
     conn: Connection = Depends(context_get_conn),
 ):
-    blog_svc.create_blog(conn, title=title, author=author, content=content)
+    print("### image File", imagefile)
+    print("Image file name", imagefile.filename)
+    # blog_svc.create_blog(conn, title=title, author=author, content=content, image)
     return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
 
 
@@ -81,5 +84,5 @@ def update_blog(
 def delete_blog(
     request: Request, id: int, conn: Connection = Depends(context_get_conn)
 ):
-    blog_svc.delete_blog(conn, id)
-    return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
+    blog_svc.delete_blog(conn, id=id)
+    # return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
