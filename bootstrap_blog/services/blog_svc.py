@@ -1,10 +1,16 @@
 from typing import List
-from fastapi import status
+from fastapi import UploadFile, status
 from fastapi.exceptions import HTTPException
 from sqlalchemy import Connection, text
 from schemas.blog_schema import Blog, BlogData
 from sqlalchemy.exc import SQLAlchemyError
 from util import util
+from dotenv import load_dotenv
+import os
+import time
+
+load_dotenv()
+UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
 
 def get_all_blogs(conn: Connection) -> List:
@@ -77,6 +83,22 @@ def get_blog_by_id(conn: Connection, id: int):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
         )
+
+
+def upload_file(author: str, imagefile: UploadFile = None):
+    user_dir = f"{UPLOAD_DIR}/{author}/"
+
+    if not os.path.exists(user_dir):
+        os.makedirs(user_dir)
+
+    filename_only, ext = os.path.splitext(imagefile.filename)
+    upload_filename = f"{filename_only}_{(int)(time.time())}{ext}"
+    upload_image_loc = user_dir + upload_filename
+
+    with open(upload_image_loc, "wb") as outfile:
+        while content := imagefile.file.read(1024):
+            outfile.write(content)
+    print("upload succeeded", upload_image_loc)
 
 
 def create_blog(conn: Connection, title: str, author: str, content: str):

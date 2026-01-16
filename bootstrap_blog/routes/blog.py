@@ -51,6 +51,7 @@ def create_blog(
 ):
     print("### image File", imagefile)
     print("Image file name", imagefile.filename)
+    blog_svc.upload_file(author=author, imagefile=imagefile)
     # blog_svc.create_blog(conn, title=title, author=author, content=content, image)
     return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
 
