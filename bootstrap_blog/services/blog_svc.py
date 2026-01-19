@@ -16,7 +16,9 @@ UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 def get_all_blogs(conn: Connection) -> List:
     try:
         q = """
-            SELECT id, title, author, content, image_loc, modified_dt FROM blog
+            SELECT id, title, author, content, 
+            CASE WHEN image_loc IS NULL THEN '/static/default/blog_default.png' ELSE image_loc END as image_loc, 
+            modified_dt FROM blog
             """
         result = conn.execute(text(q))
 
@@ -74,6 +76,8 @@ def get_blog_by_id(conn: Connection, id: int):
             image_loc=row.image_loc,
             modified_dt=row.modified_dt,
         )
+        if blog.image_loc is None:
+            blog.image_loc = "/static/default/blog_default.png"
         result.close()
         return blog
 
