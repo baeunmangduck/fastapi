@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
 from fastapi.exceptions import HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import Connection, text
 from db.database import context_get_conn, direct_get_conn
@@ -81,15 +81,37 @@ def update_blog(
     title=Form(min_length=2, max_length=100),
     author=Form(max_length=100),
     content=Form(min_length=2, max_length=4000),
+    imagefile: UploadFile | None = File(None),
     conn: Connection = Depends(context_get_conn),
 ):
-    blog_svc.update_blog(conn, id=id, title=title, author=author, content=content)
+    image_loc = None
+    if len(imagefile.filename.strip()) > 0:
+        image_loc = blog_svc.upload_file(author=author, imagefile=imagefile)
+        blog_svc.update_blog(
+            conn,
+            id=id,
+            title=title,
+            author=author,
+            content=content,
+            image_loc=image_loc,
+        )
+    else:
+        blog_svc.update_blog(
+            conn,
+            id=id,
+            title=title,
+            author=author,
+            content=content,
+            image_loc=image_loc,
+        )
     return RedirectResponse(f"/blogs/show/{id}", status_code=status.HTTP_302_FOUND)
 
 
-@router.post("/delete/{id}")
+@router.delete("/delete/{id}")
 def delete_blog(
     request: Request, id: int, conn: Connection = Depends(context_get_conn)
 ):
-    blog_svc.delete_blog(conn, id=id)
+    blog = blog_svc.get_blog_by_id(conn, id)
+    blog_svc.delete_blog(conn, id=id, image_loc=blog.image_loc)
+    return JSONResponse(content="메시지가 삭제됨.")
     # return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)

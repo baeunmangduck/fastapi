@@ -148,17 +148,25 @@ def update_blog(
     title: str,
     author: str,
     content: str,
+    image_loc: str = None,
 ):
 
     try:
         q = f"""
             UPDATE blog
-            SET title = :title, author = :author, content = :content
+            SET title = :title, author = :author, content = :content, image_loc = :image_loc
             WHERE id = :id
             """
         statement = text(q)
         result = conn.execute(
-            statement, {"id": id, "title": title, "author": author, "content": content}
+            statement,
+            {
+                "id": id,
+                "title": title,
+                "author": author,
+                "content": content,
+                "image_loc": image_loc,
+            },
         )
         if result.rowcount == 0:
             raise HTTPException(
@@ -176,7 +184,7 @@ def update_blog(
         )
 
 
-def delete_blog(conn: Connection, id: int):
+def delete_blog(conn: Connection, id: int, image_loc: str = None):
     try:
         q = """
             DELETE FROM blog
@@ -190,10 +198,25 @@ def delete_blog(conn: Connection, id: int):
                 detail=f"해당 id {id}는 존재하지 않음",
             )
         conn.commit()
+
+        if image_loc is not None:
+            image_path = "." + image_loc
+            if os.path.exists(image_path):
+                print("image path: ", image_path)
+
+                os.remove(image_path)
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
         conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
+        )
+
+    except Exception as e:
+        print(e)
+        conn.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="알 수 없는 이유로 문제가 발생했습니다.",
         )
