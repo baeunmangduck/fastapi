@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import QueuePool, NullPool
 from contextlib import contextmanager
@@ -9,17 +10,17 @@ import os
 
 load_dotenv()
 DATABASE_CONN = os.getenv("DB_CONN")
+print("DATABASE_CONN: ", DATABASE_CONN)
 
-
-engine = create_engine(
-    DATABASE_CONN, poolclass=QueuePool, pool_size=10, max_overflow=0, pool_recycle=300
+engine: AsyncEngine = create_async_engine(
+    DATABASE_CONN, echo=True, pool_size=10, max_overflow=0, pool_recycle=300
 )
 
 
-def direct_get_conn():
+async def direct_get_conn():
     conn = None
     try:
-        conn = engine.connect()
+        conn = await engine.connect()
         return conn
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
@@ -29,10 +30,10 @@ def direct_get_conn():
         )
 
 
-def context_get_conn():
+async def context_get_conn():
     conn = None
     try:
-        conn = engine.connect()
+        conn = await engine.connect()
         yield conn
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
@@ -42,4 +43,4 @@ def context_get_conn():
         )
     finally:
         if conn:
-            conn.close()
+            await conn.close()

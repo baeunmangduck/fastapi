@@ -8,19 +8,20 @@ from util import util
 from dotenv import load_dotenv
 import os
 import time
+import aiofiles as aio
 
 load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
 
-def get_all_blogs(conn: Connection) -> List:
+async def get_all_blogs(conn: Connection) -> List:
     try:
         q = """
             SELECT id, title, author, content, 
             CASE WHEN image_loc IS NULL THEN '/static/default/blog_default.png' ELSE image_loc END as image_loc, 
             modified_dt FROM blog
             """
-        result = conn.execute(text(q))
+        result = await conn.execute(text(q))
 
         all_blogs = [
             BlogData(
@@ -51,7 +52,7 @@ def get_all_blogs(conn: Connection) -> List:
         )
 
 
-def get_blog_by_id(conn: Connection, id: int):
+async def get_blog_by_id(conn: Connection, id: int):
     try:
         q = """
             SELECT id, title, author, content, image_loc, modified_dt FROM blog 
@@ -60,7 +61,7 @@ def get_blog_by_id(conn: Connection, id: int):
 
         statement = text(q)
 
-        result = conn.execute(statement, {"id": id})
+        result = await conn.execute(statement, {"id": id})
         if result.rowcount == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -89,7 +90,7 @@ def get_blog_by_id(conn: Connection, id: int):
         )
 
 
-def upload_file(author: str, imagefile: UploadFile = None):
+async def upload_file(author: str, imagefile: UploadFile = None):
     try:
         user_dir = f"{UPLOAD_DIR}/{author}/"
         if not os.path.exists(user_dir):
@@ -99,9 +100,9 @@ def upload_file(author: str, imagefile: UploadFile = None):
         upload_filename = f"{filename_only}_{(int)(time.time())}{ext}"
         upload_image_loc = user_dir + upload_filename
 
-        with open(upload_image_loc, "wb") as outfile:
-            while content := imagefile.file.read(1024):
-                outfile.write(content)
+        async with aio.open(upload_image_loc, "wb") as outfile:
+            while content := await imagefile.read(1024):
+                await outfile.write(content)
         print("upload succeeded", upload_image_loc)
 
         return upload_image_loc[1:]
@@ -114,7 +115,7 @@ def upload_file(author: str, imagefile: UploadFile = None):
         )
 
 
-def create_blog(
+async def create_blog(
     conn: Connection, title: str, author: str, content: str, image_loc=None
 ):
     try:
@@ -122,7 +123,7 @@ def create_blog(
             INSERT INTO blog(title, author, content, image_loc, modified_dt)
             VALUES (:title, :author, :content, :image_loc, now())
             """
-        conn.execute(
+        await conn.execute(
             text(q),
             {
                 "title": title,
@@ -131,18 +132,18 @@ def create_blog(
                 "image_loc": image_loc,
             },
         )
-        conn.commit()
+        await conn.commit()
 
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
-        conn.rollback()
+        await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="요청 데이터가 제대로 전달되지 않았습니다.",
         )
 
 
-def update_blog(
+async def update_blog(
     conn: Connection,
     id: int,
     title: str,
@@ -158,7 +159,7 @@ def update_blog(
             WHERE id = :id
             """
         statement = text(q)
-        result = conn.execute(
+        result = await conn.execute(
             statement,
             {
                 "id": id,
@@ -173,31 +174,31 @@ def update_blog(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"해당 id {id}가 존재하지 않음",
             )
-        conn.commit()
+        await conn.commit()
 
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
-        conn.rollback()
+        await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="요청 데이터가 제대로 전달되지 않았습니다.",
         )
 
 
-def delete_blog(conn: Connection, id: int, image_loc: str = None):
+async def delete_blog(conn: Connection, id: int, image_loc: str = None):
     try:
         q = """
             DELETE FROM blog
             WHERE id = :id
             """
         statement = text(q)
-        result = conn.execute(statement, {"id": id})
+        result = await conn.execute(statement, {"id": id})
         if result.rowcount == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"해당 id {id}는 존재하지 않음",
             )
-        conn.commit()
+        await conn.commit()
 
         if image_loc is not None:
             image_path = "." + image_loc
@@ -207,7 +208,7 @@ def delete_blog(conn: Connection, id: int, image_loc: str = None):
                 os.remove(image_path)
     except SQLAlchemyError as e:
         print("SQL Alchemy Error: ", e)
-        conn.rollback()
+        await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="요청하신 서비스에서 잠시 내부적인 문제가 발생했습니다.",
