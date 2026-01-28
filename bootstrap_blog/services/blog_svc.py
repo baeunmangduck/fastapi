@@ -19,7 +19,7 @@ async def get_all_blogs(conn: Connection) -> List:
         q = """
             SELECT id, title, author, content, 
             CASE WHEN image_loc IS NULL THEN '/static/default/blog_default.png' ELSE image_loc END as image_loc, 
-            modified_dt FROM blog
+            modified_dt FROM blog1
             """
         result = await conn.execute(text(q))
 
