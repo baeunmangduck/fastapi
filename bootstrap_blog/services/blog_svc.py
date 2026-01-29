@@ -1,6 +1,5 @@
 from typing import List
-from fastapi import UploadFile, status
-from fastapi.exceptions import HTTPException
+from fastapi import UploadFile, status, HTTPException
 from sqlalchemy import Connection, text
 from schemas.blog_schema import Blog, BlogData
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,7 +18,7 @@ async def get_all_blogs(conn: Connection) -> List:
         q = """
             SELECT id, title, author, content, 
             CASE WHEN image_loc IS NULL THEN '/static/default/blog_default.png' ELSE image_loc END as image_loc, 
-            modified_dt FROM blog1
+            modified_dt FROM blog
             """
         result = await conn.execute(text(q))
 
@@ -55,7 +54,7 @@ async def get_all_blogs(conn: Connection) -> List:
 async def get_blog_by_id(conn: Connection, id: int):
     try:
         q = """
-            SELECT id, title, author, content, image_loc, modified_dt FROM blog 
+            SELECT id, title, author, content, image_loc, modified_dt FROM blog
             where id = :id
             """
 
