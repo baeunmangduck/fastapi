@@ -13,7 +13,7 @@ DATABASE_CONN = os.getenv("DB_CONN")
 print("DATABASE_CONN: ", DATABASE_CONN)
 
 engine: AsyncEngine = create_async_engine(
-    DATABASE_CONN, echo=True, pool_size=10, max_overflow=0, pool_recycle=300
+    DATABASE_CONN, echo=False, pool_size=10, max_overflow=0, pool_recycle=300
 )
 
 

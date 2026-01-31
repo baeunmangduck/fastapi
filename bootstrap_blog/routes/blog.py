@@ -74,7 +74,7 @@ async def update_blog_ui(
     )
 
 
-@router.post("/modify/{id}")
+@router.put("/modify/{id}")
 async def update_blog(
     request: Request,
     id: int,

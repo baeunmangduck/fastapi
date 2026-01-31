@@ -7,12 +7,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from routes import blog
 from db.database import engine
-from util import exc_handler
+from util import exc_handler, middleware
 from util.common import lifespan
-
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.add_middleware(middleware_class=middleware.DummyMiddleware)
+app.add_middleware(middleware_class=middleware.MethodOverrideMiddleware)
+
 app.include_router(blog.router)
 
 
