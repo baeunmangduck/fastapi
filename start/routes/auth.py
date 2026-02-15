@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.exceptions import HTTPException
 from pydantic import EmailStr
 from db.database import context_get_conn
 from sqlalchemy import Connection
@@ -20,6 +21,10 @@ def get_hashed_password(password: str):
     return pwd_context.hash(password)
 
 
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
 @router.get("/register")
 async def register_user_ui(request: Request):
     return templates.TemplateResponse(
@@ -34,13 +39,46 @@ async def register_user(
     password: str = Form(min_length=2, max_length=30),
     conn: Connection = Depends(context_get_conn),
 ):
+    user = await auth_svc.get_user_by_email(conn=conn, email=email)
+    if user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="해당 이메일은 이미 등록되어 있습니다.",
+        )
+
     hashed_password = get_hashed_password(password)
     await auth_svc.register_user(
         conn=conn, name=name, email=email, hashed_password=hashed_password
     )
-    return
+    return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/login")
 async def login_user_ui(request: Request):
     return templates.TemplateResponse(request=request, name="login.html", context={})
+
+
+@router.post("/login")
+async def login_user(
+    email: EmailStr = Form(...),
+    password: str = Form(min_length=2, max_length=30),
+    conn: Connection = Depends(context_get_conn),
+):
+    userpass = await auth_svc.get_userpass_by_email(conn=conn, email=email)
+    if userpass is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="해당 이메일 사용자는 존재하지 않습니다.",
+        )
+
+    is_correct_pw = verify_password(
+        plain_password=password, hashed_password=userpass.hashed_password
+    )
+
+    if not is_correct_pw:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="패스워드 정보가 입력정보와 다릅니다.",
+        )
+
+    return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
