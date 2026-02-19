@@ -51,10 +51,10 @@ def get_logged_user_by_cookie_di(my_cookie=Cookie(None)):
 async def read_root(cookie_user: dict = Depends(get_logged_user_by_cookie_di)):
     if not cookie_user:
         return HTMLResponse(
-            "로그인 하지 않았습니다. 여기서 로그인 해주세요. <a href='/login'> 로그인 </a>",
+            "로그인 하지 않았습니다. 로그인 해주세요. <a href='/login'> 로그인</a>",
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
-    return HTMLResponse(f"환영합니다. {cookie_user['username']}님")
+    return HTMLResponse(f"환영합니다. {cookie_user['username']} 님")
 
 
 # Login UI page
