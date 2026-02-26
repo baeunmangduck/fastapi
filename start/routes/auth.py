@@ -60,6 +60,7 @@ async def login_user_ui(request: Request):
 
 @router.post("/login")
 async def login_user(
+    request: Request,
     email: EmailStr = Form(...),
     password: str = Form(min_length=2, max_length=30),
     conn: Connection = Depends(context_get_conn),
@@ -80,5 +81,17 @@ async def login_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="패스워드 정보가 입력정보와 다릅니다.",
         )
+    # set_cookie 할 필요 없이 request.session 설정하면 RedirectResponse하면서 쿠키가 전달됨
+    request.session["session_user"] = {
+        "id": userpass.id,
+        "name": userpass.name,
+        "email": userpass.email,
+    }
+    print("request.session: ", request.session)
+    return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
 
+
+@router.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
     return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
