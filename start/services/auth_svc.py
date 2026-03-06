@@ -1,14 +1,14 @@
-from fastapi import Request, status, UploadFile
+from fastapi import Request, status
 from fastapi.exceptions import HTTPException
+from schemas.auth_schema import UserData, UserDataPASS
+from schemas.blog_schema import BlogData
 from sqlalchemy import text, Connection
 from sqlalchemy.exc import SQLAlchemyError
-from schemas.auth_schema import UserData, UserDataPASS
 from utils import util
 from typing import List
 from dotenv import load_dotenv
 import os
 import time
-import aiofiles as aio
 
 
 async def get_user_by_email(conn: Connection, email: str) -> UserData:
@@ -20,7 +20,7 @@ async def get_user_by_email(conn: Connection, email: str) -> UserData:
         stmt = text(query)
         bind_stmt = stmt.bindparams(email=email)
         result = await conn.execute(bind_stmt)
-        # 만약에 한건도 찾지 못하면 오류를 던진다.
+        # 만약에 한건도 찾지 못하면 None을 던진다.
         if result.rowcount == 0:
             return None
 
@@ -53,7 +53,7 @@ async def get_userpass_by_email(conn: Connection, email: str) -> UserDataPASS:
         stmt = text(query)
         bind_stmt = stmt.bindparams(email=email)
         result = await conn.execute(bind_stmt)
-        # 만약에 한건도 찾지 못하면 오류를 던진다.
+        # 만약에 한건도 찾지 못하면 None을 던진다.
         if result.rowcount == 0:
             return None
 
@@ -80,13 +80,12 @@ async def get_userpass_by_email(conn: Connection, email: str) -> UserDataPASS:
 
 
 async def register_user(conn: Connection, name: str, email: str, hashed_password: str):
-
     try:
         query = f"""
         INSERT INTO user(name, email, hashed_password)
-        values ('{name}', '{email}', '{hashed_password}')
+        values ('{name}', '{email}', '{hashed_password}')        
         """
-
+        print("query:", query)
         await conn.execute(text(query))
         await conn.commit()
 
@@ -100,28 +99,26 @@ async def register_user(conn: Connection, name: str, email: str, hashed_password
 
 
 def get_session(request: Request):
-
     return request.session
 
 
 def get_session_user_opt(request: Request):
-    if "session_user" in request.session.keys():
-        return request.session["session_user"]
+    if "session_user" in request.state.session.keys():
+        return request.state.session["session_user"]
 
 
 def get_session_user_prt(request: Request):
-    if "session_user" not in request.session.keys():
+    if "session_user" not in request.state.session.keys():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="해당 서비스는 로그인이 필요합니다.",
         )
-    return request.session["session_user"]
+    return request.state.session["session_user"]
 
 
 def check_valid_auth(session_user: dict, blog_author_id: int, blog_email: str):
     if session_user is None:
         return False
-
     if (session_user["id"] == blog_author_id) and (session_user["email"] == blog_email):
         return True
     return False

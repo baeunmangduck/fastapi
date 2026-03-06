@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Request, Depends, Form, UploadFile, File, status
+from fastapi import APIRouter, Request, Depends, Form, status
 from fastapi.responses import RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 from fastapi.exceptions import HTTPException
-from pydantic import EmailStr
+from fastapi.templating import Jinja2Templates
 from db.database import context_get_conn
-from sqlalchemy import Connection
 from services import auth_svc
+from schemas.auth_schema import UserDataPASS
+from sqlalchemy import Connection
 from passlib.context import CryptContext
-
+from pydantic import EmailStr
 
 # router 생성
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -39,32 +39,37 @@ async def register_user(
     password: str = Form(min_length=2, max_length=30),
     conn: Connection = Depends(context_get_conn),
 ):
+
     user = await auth_svc.get_user_by_email(conn=conn, email=email)
     if user is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="해당 이메일은 이미 등록되어 있습니다.",
+            detail="해당 Email은 이미 등록되어 있습니다. ",
         )
 
     hashed_password = get_hashed_password(password)
     await auth_svc.register_user(
         conn=conn, name=name, email=email, hashed_password=hashed_password
     )
+
     return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
+
+    # auth_svc.register_user_...(conn=conn, name=name, email=email, password=password)
 
 
 @router.get("/login")
-async def login_user_ui(request: Request):
+async def login_ui(request: Request):
     return templates.TemplateResponse(request=request, name="login.html", context={})
 
 
 @router.post("/login")
-async def login_user(
+async def login(
     request: Request,
     email: EmailStr = Form(...),
     password: str = Form(min_length=2, max_length=30),
     conn: Connection = Depends(context_get_conn),
 ):
+    # 입력 email로 db에 사용자가 등록되어 있는지 확인.
     userpass = await auth_svc.get_userpass_by_email(conn=conn, email=email)
     if userpass is None:
         raise HTTPException(
@@ -75,23 +80,22 @@ async def login_user(
     is_correct_pw = verify_password(
         plain_password=password, hashed_password=userpass.hashed_password
     )
-
     if not is_correct_pw:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="패스워드 정보가 입력정보와 다릅니다.",
+            detail="등록하신 이메일과 패스워드 정보가 입력 정보와 다릅니다.",
         )
-    # set_cookie 할 필요 없이 request.session 설정하면 RedirectResponse하면서 쿠키가 전달됨
-    request.session["session_user"] = {
+    # redis에 저장
+    request.state.session["session_user"] = {
         "id": userpass.id,
         "name": userpass.name,
         "email": userpass.email,
     }
-    print("request.session: ", request.session)
+    # print("request.session:", request.session)
     return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/logout")
 async def logout(request: Request):
-    request.session.clear()
+    request.state.session.clear()
     return RedirectResponse("/blogs", status_code=status.HTTP_302_FOUND)
